@@ -5,7 +5,7 @@ library(janitor)
 
 # 1. CARREGA DADOS ----
 
-sips <- readxl::read_excel("./data/SIPS Valores.xlsx")
+sips <- readxl::read_excel("./data/sips/SIPS Valores.xlsx")
 
 # 2. LIMPA DADOS ----
 
@@ -79,69 +79,4 @@ tab_sips <- sips_limpo %>%
 tab_sips %>% data.frame %>% xlsx::write.xlsx(., "Tabela 1 - Confianca por renda per capita - SIPS.xlsx", row.names = F)
 
 rm(list=ls())
-
-# 3.2 Numero de OSCs ativas por UF e regiao (AGUARDANDO DADOS) ----
-
-load("./data/base_mortalidade_osc_2018.rda")
-
-pop_2000_2010 <- readxl::read_excel("./data/tabela1552_populacao_por_sexo_e_urbana_rural_2000_2010_censo.xlsx", skip = 6, n_max = 5565)
-pop_2019_2020 <- readxl::read_excel("./data/Tabela 6579_https___sidra.ibge.gov.br_Tabela_6579.xlsx", skip = 3)
-
-pop_2000_2010_uf <- pop_2000_2010 %>% 
-      select(uf, `2000_Total_Total`, `2010_Total_Total`) %>%
-      gather(ano, populacao, -uf) %>% 
-      mutate(ano = str_sub(ano, 1, 4),
-             populacao = as.numeric(populacao)) %>% 
-      group_by(uf, ano) %>% 
-      summarize(populacao = sum(populacao, na.rm = T)) %>% 
-      ungroup()
-   
-pop_2019_2020_uf <- pop_2019_2020 %>% 
-      select(uf, `2019`, `2020`) %>% 
-      gather(ano, populacao, -uf) %>% 
-      group_by(uf, ano) %>% 
-      summarize(populacao = sum(populacao, na.rm = T)) %>% 
-      ungroup()
-
-pop_2000_2020_reg <- pop_2000_2010_uf %>% 
-      bind_rows(pop_2019_2020_uf) %>% 
-      mutate(regiao = case_when(uf %in% c("RO", "AC", "AM", "RR", "PA", "AP", "TO") ~ "Norte",
-                                uf %in% c("MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA") ~ "Nordeste",
-                                uf %in% c("MG", "ES", "RJ", "SP") ~ "Sudeste",
-                                uf %in% c("PR", "SC", "RS") ~ "Sul",
-                                uf %in% c("MS", "MT", "GO", "DF") ~ "Centro-Oeste")) %>% 
-      group_by(regiao, ano) %>% 
-      summarize(populacao = sum(populacao)) %>% 
-      filter(!is.na(regiao)) %>% 
-      ungroup() %>% 
-      rename(territorio = regiao)
-      
-pop_2000_2020_uf <-  pop_2000_2010_uf %>% 
-      bind_rows(pop_2019_2020_uf) %>% 
-      rename(territorio = uf) %>% 
-      arrange(territorio, ano)
-
-pop_2000_2020_completo <- bind_rows(pop_2000_2020_uf, pop_2000_2020_reg)
-
-osc_2000_2018_uf <- bind_rows(
-      cadastro_osc2018 %>% 
-            filter(ativa == "Ativa") %>% 
-            filter(ano_situacao <= 2000) %>% 
-            group_by(uf) %>% 
-            summarize(n_osc = n_distinct(cnpj)) %>% 
-            add_column(ano = 2000, .before = "n_osc"),
-      cadastro_osc2018 %>% 
-            filter(ativa == "Ativa") %>% 
-            filter(ano_situacao <= 2010) %>% 
-            group_by(uf) %>% 
-            summarize(n_osc = n_distinct(cnpj)) %>% 
-            add_column(ano = 2010, .before = "n_osc"),
-      cadastro_osc2018 %>% 
-            filter(ativa == "Ativa") %>% 
-            filter(ano_situacao <= 2018) %>% 
-            group_by(uf) %>% 
-            summarize(n_osc = n_distinct(cnpj)) %>% 
-            add_column(ano = 2018, .before = "n_osc")
-      )
-
 
